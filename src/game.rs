@@ -15,6 +15,9 @@ pub struct GameState {
 }
 
 impl GameState {
+    /// A mesh that draws the tiles of a board.
+    ///
+    /// If errors don't happen, the output should be a constant.
     fn board_mesh(ctx: &Context) -> GameResult<Mesh> {
         let mut mb = MeshBuilder::new();
 
@@ -85,10 +88,10 @@ impl event::EventHandler<ggez::GameError> for GameState {
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         let mut canvas = Canvas::from_frame(ctx, Color::from_rgb(240, 217, 181));
 
-        canvas.draw(&self.board_mesh, Vec2::new(0., 0.));
-        canvas.draw(&self.pieces_mesh, Vec2::new(0., 0.));
+        canvas.draw(&self.board_mesh, Vec2::ZERO);
+        canvas.draw(&self.pieces_mesh, Vec2::ZERO);
         if self.drawing_hitcircles {
-            canvas.draw(&self.hitcircles_mesh, Vec2::new(0., 0.));
+            canvas.draw(&self.hitcircles_mesh, Vec2::ZERO);
         }
 
         canvas.finish(ctx)?;
