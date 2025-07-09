@@ -2,6 +2,7 @@ use ggez::{
     Context, GameResult, event,
     glam::*,
     graphics::{Canvas, Color, DrawMode, Mesh, MeshBuilder, Rect},
+    input::mouse::MouseButton,
 };
 
 use crate::logic::{Pieces, StateChange};
@@ -62,7 +63,7 @@ impl GameState {
     }
 }
 
-impl event::EventHandler<ggez::GameError> for GameState {
+impl event::EventHandler for GameState {
     fn update(&mut self, _ctx: &mut Context) -> GameResult {
         Ok(())
     }
@@ -70,7 +71,7 @@ impl event::EventHandler<ggez::GameError> for GameState {
     fn mouse_button_down_event(
         &mut self,
         ctx: &mut Context,
-        _button: event::MouseButton,
+        _button: MouseButton,
         x: f32,
         y: f32,
     ) -> GameResult {

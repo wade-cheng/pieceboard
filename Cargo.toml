@@ -4,4 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-ggez = "0.9.3"
+# pin ggez to a devel commit to get updated web-sys to make it compatible with iroh
+ggez = { git = "https://github.com/ggez/ggez", rev = "9a4d240" }
+iroh = "0.90.0"
