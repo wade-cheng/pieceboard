@@ -6,5 +6,5 @@ edition = "2024"
 [dependencies]
 # pin ggez to a devel commit to get updated web-sys to make it compatible with iroh
 ggez = { git = "https://github.com/ggez/ggez", rev = "9a4d240" }
-sfn-tpn = { git = "https://github.com/wade-cheng/sfn-tpn", rev = "e43ecbb" }
+sfn-tpn = "1.0"
 tokio = "1.46.1"

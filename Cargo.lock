@@ -1543,7 +1543,7 @@ dependencies = [
  "vec_map",
  "wasm-bindgen",
  "web-sys",
- "windows 0.58.0",
+ "windows 0.61.3",
 ]
 
 [[package]]
@@ -2039,7 +2039,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.58.0",
+ "windows-core 0.61.2",
 ]
 
 [[package]]
@@ -2470,7 +2470,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4108,7 +4108,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4604,10 +4604,10 @@ dependencies = [
 
 [[package]]
 name = "sfn-tpn"
-version = "0.1.0"
-source = "git+https://github.com/wade-cheng/sfn-tpn?rev=e43ecbb#e43ecbb855a1230166b27a2e68a33f83bcc27ca5"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f5602924c786978aa802fde62f84731b10333613acbcb6014d324bbb7b98a44b"
 dependencies = [
- "anyhow",
  "iroh",
  "iroh-base",
  "tokio",
