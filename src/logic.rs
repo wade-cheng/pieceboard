@@ -6,7 +6,43 @@ use ggez::{
     graphics::{Color, DrawMode, Mesh, MeshBuilder},
 };
 
-use crate::constants::{BOARD_PX, HITCIRCLE_RADIUS, TILE_PX};
+use crate::constants::{BOARD_PX, HITCIRCLE_RADIUS, TILE_PX, TURN_SIZE};
+
+pub struct Turn(pub [u8; TURN_SIZE]);
+
+impl From<(Tile, Tile)> for Turn {
+    /// A turn that encodes (src, dest).
+    fn from((src, dest): (Tile, Tile)) -> Self {
+        let mut srcfile = [0];
+        let mut destfile = [0];
+        src.file.encode_utf8(&mut srcfile);
+        dest.file.encode_utf8(&mut destfile);
+
+        Self([src.rank, srcfile[0], dest.rank, destfile[0]])
+    }
+}
+
+impl From<Turn> for (Tile, Tile) {
+    fn from(turn: Turn) -> Self {
+        let [src_rank, src_file, dest_rank, dest_file] = turn.0;
+        (
+            Tile {
+                rank: src_rank,
+                file: src_file as char,
+            },
+            Tile {
+                rank: dest_rank,
+                file: dest_file as char,
+            },
+        )
+    }
+}
+
+#[derive(Clone, PartialEq, Eq)]
+struct Tile {
+    rank: u8,
+    file: char,
+}
 
 /// A piece on the board.
 ///
@@ -14,23 +50,23 @@ use crate::constants::{BOARD_PX, HITCIRCLE_RADIUS, TILE_PX};
 #[derive(Clone)]
 struct Piece {
     color: Color,
-    rank: u8,
-    file: char,
+    tile: Tile,
 }
 
 impl Piece {
     /// x-coordinate of this piece.
     fn x(&self) -> f32 {
         // 0-indexed file
-        let x_offset =
-            u8::try_from(self.file).expect("The file should have been within bounds.") - b"a"[0];
+        let x_offset = u8::try_from(self.tile.file)
+            .expect("The file should have been within bounds.")
+            - b"a"[0];
         TILE_PX / 2. + f32::from(x_offset) * TILE_PX
     }
 
     /// y-coordinate of this piece.
     fn y(&self) -> f32 {
         // 0-indexed rank
-        let y_offset = self.rank - 1;
+        let y_offset = self.tile.rank - 1;
         BOARD_PX - (TILE_PX / 2. + f32::from(y_offset) * TILE_PX)
     }
 
@@ -42,14 +78,14 @@ impl Piece {
 
     /// Whether these two pieces are on the same tile.
     fn same_tile(&self, other: &Self) -> bool {
-        self.rank == other.rank && self.file == other.file
+        self.tile.rank == other.tile.rank && self.tile.file == other.tile.file
     }
 }
 
 pub enum StateChange {
     Deselected,
     Selected,
-    PieceMoved,
+    PieceMoved([u8; TURN_SIZE]),
 }
 
 pub struct Pieces {
@@ -67,7 +103,10 @@ impl Default for Pieces {
             (Color::BLACK, 8),
         ] {
             for file in 'a'..='h' {
-                inner.push(Piece { color, rank, file })
+                inner.push(Piece {
+                    color,
+                    tile: Tile { rank, file },
+                })
             }
         }
 
@@ -81,6 +120,16 @@ impl Default for Pieces {
 static FILLED: OnceLock<Pieces> = OnceLock::new();
 
 impl Pieces {
+    pub fn do_turn_unchecked(&mut self, turn: Turn) {
+        let (src, dest): (Tile, Tile) = turn.into();
+        assert!(self.selected_idx.is_none());
+        let piece_idx = self
+            .inner
+            .iter()
+            .position(|piece| piece.tile == src)
+            .expect("unchecked invariant is this");
+        self.inner[piece_idx].tile = dest;
+    }
     pub fn handle_click(&mut self, x: f32, y: f32) -> Option<Vec<StateChange>> {
         // println!("selidx: {:?}", self.selected_idx); // 24 IS TOP LEFT, 0 BOT LEFT
         match self.selected_idx {
@@ -91,12 +140,14 @@ impl Pieces {
                 {
                     // if the click at x, y can send our piece to some dest_piece,
                     // and the destination piece is not our selected piece, move it.
-                    self.inner[src_piece_idx].rank = dest_piece.rank;
-                    self.inner[src_piece_idx].file = dest_piece.file;
+                    let src = self.inner[src_piece_idx].tile.clone();
+                    self.inner[src_piece_idx].tile.rank = dest_piece.tile.rank;
+                    self.inner[src_piece_idx].tile.file = dest_piece.tile.file;
                     let moved_piece = self.inner[src_piece_idx].clone();
                     self.inner.retain(|piece| !piece.same_tile(&dest_piece));
+                    let dest = moved_piece.tile.clone();
                     self.inner.push(moved_piece);
-                    state_changes.push(StateChange::PieceMoved);
+                    state_changes.push(StateChange::PieceMoved(Turn::from((src, dest)).0));
                 }
                 self.selected_idx = None;
                 return Some(state_changes);
@@ -140,8 +191,7 @@ impl Pieces {
             for file in 'a'..='h' {
                 inner.push(Piece {
                     color: Color::from_rgba(250, 250, 200, 80),
-                    rank,
-                    file,
+                    tile: Tile { rank, file },
                 })
             }
         }

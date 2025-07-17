@@ -1,11 +1,71 @@
 use ggez::{
-    Context, GameResult, event,
+    Context, GameError, GameResult, event,
     glam::*,
     graphics::{Canvas, Color, DrawMode, Mesh, MeshBuilder, Rect},
     input::mouse::MouseButton,
 };
+use sfn_tpn::{Config, NetcodeInterface};
+use tokio::sync::oneshot;
 
-use crate::logic::{Pieces, StateChange};
+use crate::{
+    constants::TURN_SIZE,
+    logic::{Pieces, StateChange, Turn},
+};
+
+async fn get_netcode_interface() -> GameResult<NetcodeInterface<TURN_SIZE>> {
+    /// Return whether our process is a client.
+    ///
+    /// If not, we must be the server.
+    ///
+    /// Decides based on command line arguments. If no arguments
+    /// are supplied, we assume the user wants the process to be
+    /// a server.
+    fn is_client() -> GameResult<bool> {
+        let mut is_client = false;
+        let mut is_server = false;
+        for arg in std::env::args() {
+            if arg == "client" {
+                is_client = true;
+            }
+            if arg == "server" {
+                is_server = true;
+            }
+        }
+        if is_client && is_server {
+            Err(GameError::CustomError(
+                "This process cannot be both the client and the server.".to_string(),
+            ))
+        } else {
+            Ok(is_client)
+        }
+    }
+
+    /// Gets the first ticket string from the command line arguments.
+    fn ticket() -> GameResult<String> {
+        for arg in std::env::args() {
+            if let Some(("--ticket", t)) = arg.split_once("=") {
+                return Ok(t.to_string());
+            }
+        }
+
+        Err(GameError::CustomError(
+            "No ticket provided. Clients must provide a ticket to find a server.".to_string(),
+        ))
+    }
+
+    if is_client()? {
+        Ok(NetcodeInterface::new(Config::Ticket(ticket()?)))
+    } else {
+        let (send, recv) = oneshot::channel();
+        let net = NetcodeInterface::<TURN_SIZE>::new(Config::TicketSender(send));
+        println!(
+            "hosting game. another player may join with \n\n\
+            cargo run client --ticket={}",
+            recv.await.unwrap()
+        );
+        Ok(net)
+    }
+}
 
 pub struct GameState {
     board_mesh: Mesh,
@@ -13,6 +73,7 @@ pub struct GameState {
     drawing_hitcircles: bool,
     pieces: Pieces,
     pieces_mesh: Mesh,
+    netcode: NetcodeInterface<TURN_SIZE>,
 }
 
 impl GameState {
@@ -46,12 +107,13 @@ impl GameState {
         Ok(Mesh::from_data(ctx, mb.build()))
     }
 
-    pub fn new(ctx: &mut Context) -> GameResult<GameState> {
+    pub async fn new(ctx: &mut Context) -> GameResult<GameState> {
         let board_mesh = Self::board_mesh(ctx)?;
         let hitcircles_mesh = Pieces::filled().get_mesh(ctx)?;
         let drawing_hitcircles = false;
         let pieces = Pieces::default();
         let pieces_mesh = pieces.get_mesh(ctx)?;
+        let netcode = get_netcode_interface().await?;
 
         Ok(GameState {
             board_mesh,
@@ -59,12 +121,19 @@ impl GameState {
             drawing_hitcircles,
             pieces,
             pieces_mesh,
+            netcode,
         })
     }
 }
 
 impl event::EventHandler for GameState {
-    fn update(&mut self, _ctx: &mut Context) -> GameResult {
+    fn update(&mut self, ctx: &mut Context) -> GameResult {
+        if !self.netcode.my_turn()
+            && let Ok(turn) = self.netcode.try_recv_turn()
+        {
+            self.pieces.do_turn_unchecked(Turn(turn));
+            self.pieces_mesh = self.pieces.get_mesh(ctx)?;
+        }
         Ok(())
     }
 
@@ -75,11 +144,18 @@ impl event::EventHandler for GameState {
         x: f32,
         y: f32,
     ) -> GameResult {
+        if !self.netcode.my_turn() {
+            return Ok(());
+        }
+
         for state_change in self.pieces.handle_click(x, y).unwrap_or(vec![]) {
             match state_change {
                 StateChange::Deselected => self.drawing_hitcircles = false,
                 StateChange::Selected => self.drawing_hitcircles = true,
-                StateChange::PieceMoved => self.pieces_mesh = self.pieces.get_mesh(ctx)?,
+                StateChange::PieceMoved(turn) => {
+                    self.pieces_mesh = self.pieces.get_mesh(ctx)?;
+                    self.netcode.send_turn(&turn);
+                }
             }
         }
 
