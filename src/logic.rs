@@ -75,11 +75,6 @@ impl Piece {
         Vec2::distance_squared(Vec2::new(self.x(), self.y()), Vec2::new(x, y))
             < HITCIRCLE_RADIUS.powi(2)
     }
-
-    /// Whether these two pieces are on the same tile.
-    fn same_tile(&self, other: &Self) -> bool {
-        self.tile.rank == other.tile.rank && self.tile.file == other.tile.file
-    }
 }
 
 pub enum StateChange {
@@ -134,19 +129,22 @@ impl Pieces {
         // println!("selidx: {:?}", self.selected_idx); // 24 IS TOP LEFT, 0 BOT LEFT
         match self.selected_idx {
             Some(src_piece_idx) => {
+                let src_piece = &mut self.inner[src_piece_idx];
                 let mut state_changes = vec![StateChange::Deselected];
+
                 if let Some(dest_piece) = Self::movable_pos(x, y)
-                    && !self.inner[src_piece_idx].same_tile(&dest_piece)
+                    && src_piece.tile != dest_piece.tile
                 {
                     // if the click at x, y can send our piece to some dest_piece,
                     // and the destination piece is not our selected piece, move it.
-                    let src = self.inner[src_piece_idx].tile.clone();
-                    self.inner[src_piece_idx].tile.rank = dest_piece.tile.rank;
-                    self.inner[src_piece_idx].tile.file = dest_piece.tile.file;
-                    let moved_piece = self.inner[src_piece_idx].clone();
-                    self.inner.retain(|piece| !piece.same_tile(&dest_piece));
-                    let dest = moved_piece.tile.clone();
+                    let src = src_piece.tile.clone();
+                    let dest = dest_piece.tile.clone();
+
+                    src_piece.tile = dest_piece.tile.clone();
+                    let moved_piece = src_piece.clone();
+                    self.inner.retain(|piece| piece.tile != dest_piece.tile);
                     self.inner.push(moved_piece);
+
                     state_changes.push(StateChange::PieceMoved(Turn::from((src, dest))));
                 }
                 self.selected_idx = None;
