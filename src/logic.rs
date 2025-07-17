@@ -123,7 +123,11 @@ impl Pieces {
             .iter()
             .position(|piece| piece.tile == src)
             .expect("unchecked invariant is this");
-        self.inner[piece_idx].tile = dest;
+        let dest_piece = &mut self.inner[piece_idx];
+        dest_piece.tile = dest;
+        let dest_piece = dest_piece.clone();
+        self.inner.retain(|piece| piece.tile != dest_piece.tile);
+        self.inner.push(dest_piece);
     }
     pub fn handle_click(&mut self, x: f32, y: f32) -> Option<Vec<StateChange>> {
         // println!("selidx: {:?}", self.selected_idx); // 24 IS TOP LEFT, 0 BOT LEFT
