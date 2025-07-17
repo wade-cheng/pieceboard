@@ -154,7 +154,7 @@ impl event::EventHandler for GameState {
                 StateChange::Selected => self.drawing_hitcircles = true,
                 StateChange::PieceMoved(turn) => {
                     self.pieces_mesh = self.pieces.get_mesh(ctx)?;
-                    self.netcode.send_turn(&turn);
+                    self.netcode.send_turn(&turn.0);
                 }
             }
         }

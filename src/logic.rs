@@ -85,7 +85,7 @@ impl Piece {
 pub enum StateChange {
     Deselected,
     Selected,
-    PieceMoved([u8; TURN_SIZE]),
+    PieceMoved(Turn),
 }
 
 pub struct Pieces {
@@ -147,7 +147,7 @@ impl Pieces {
                     self.inner.retain(|piece| !piece.same_tile(&dest_piece));
                     let dest = moved_piece.tile.clone();
                     self.inner.push(moved_piece);
-                    state_changes.push(StateChange::PieceMoved(Turn::from((src, dest)).0));
+                    state_changes.push(StateChange::PieceMoved(Turn::from((src, dest))));
                 }
                 self.selected_idx = None;
                 return Some(state_changes);
